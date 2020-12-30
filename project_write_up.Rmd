@@ -1,0 +1,70 @@
+---
+title: "Group Project"
+author: "Everyone"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+## Please do not change this
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Read the data and create the variables, please don't modify this!
+```{r, warning = FALSE, echo = FALSE, message=FALSE}
+## Load library 'data.table'
+library(data.table)
+library(ggplot2)
+library(tidyverse)
+library(pwr)
+library(lfe)
+library(stargazer)
+## Read the data
+project_data <- fread('Melted.csv')
+head(project_data)
+```
+```{r}
+reg <- felm(rating ~ treat, data = project_data)
+summary(reg)
+```
+
+```{r, warning=FALSE}
+reg2 <- felm(rating ~ treat + gender + age + location, data = project_data)
+reg3 <- felm(rating ~ treat + age, data = project_data)
+reg4 <- felm(rating ~ treat + location, data = project_data)
+stargazer(reg2, reg3, reg4, type = 'text', dep.var.labels = c('Var 1', 'Var 2', 'Val 3'), covariate.labels = c('Treatment','Gender', 'Age', 'Location','Intercept'))
+
+```
+```{r, warning=FALSE}
+reg5 <- felm(rating ~ treat + free_time| 0 | 0 | responseID, data = project_data )
+reg6 <- felm(rating ~ treat + group_activity| 0 | 0 | responseID, data = project_data )
+stargazer(reg5,reg6, type = "text")
+```
+
+This block is for interacting variables.
+```{r, warning=FALSE}
+reg7 <- felm(rating ~ treat*age| 0 | 0 | responseID, data = project_data )
+reg8 <- felm(rating ~ treat*location| 0 | 0 | responseID, data = project_data )
+reg9 <- felm(rating ~ treat*free_time| 0 | 0 | responseID, data = project_data )
+stargazer(reg7,reg8,reg9, type = "text")
+```
+
+```{r}
+#Aggregate rating by location
+treat_data <- project_data[project_data$treat ==1, ]
+head(treat_data)
+control_data <- project_data[project_data$treat ==0, ]
+head(control_data)
+
+agg_data_location <- aggregate(rating~location,treat_data,mean)
+agg_data_image <- aggregate(rating~image,treat_data,mean)
+agg_data_image_control <- aggregate(rating~image,control_data,mean)
+
+ggplot(agg_data_location, aes(x = location, y = rating)) + geom_bar(stat = 'identity')
+setDT(agg_data_image_control)
+setDT(agg_data_image)
+agg_data_image_control[,Group:="Control"]
+agg_data_image[,Group:="Treatment"]
+agg_data_both <- rbind(agg_data_image_control,agg_data_image)
+ggplot(agg_data_both, aes(x = image, y = rating, fill=Group)) + geom_bar(stat = 'identity', position = "dodge") + ggtitle("Rating by Image")+theme(axis.text.x=element_text(angle=25))+xlab("Image")+ylab("Rating")
+```
